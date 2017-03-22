@@ -1,0 +1,6 @@
+服务端参数：
+提供方和消费方都先连接ZooKeeper，然后获取远程参数配置，动态连接。
+1、ZooKeeper
+2、Rides
+3、RabbitMQ
+动态参数：
