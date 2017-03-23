@@ -1,23 +1,30 @@
 package org.xsnake.rpc.provider;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Map;
+import java.util.Date;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
-import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.core.OrderComparator;
 import org.xsnake.rpc.connector.RabbitMQConfig;
 import org.xsnake.rpc.connector.RabbitMQConnector;
 import org.xsnake.rpc.connector.RabbitMQWrapper;
 import org.xsnake.rpc.connector.ZooKeeperConnector;
 import org.xsnake.rpc.connector.ZooKeeperWrapper;
 import org.xsnake.rpc.provider.invoke.InvokeSupportHandler;
+import org.xsnake.rpc.provider.rest.RestSupportHandler;
+import org.xsnake.rpc.rest.BooleanConverter;
+import org.xsnake.rpc.rest.ConverterRegister;
+import org.xsnake.rpc.rest.DateConverter;
+import org.xsnake.rpc.rest.DoubleConverter;
+import org.xsnake.rpc.rest.FloatConverter;
+import org.xsnake.rpc.rest.IntegerConverter;
+import org.xsnake.rpc.rest.LongConverter;
+import org.xsnake.rpc.rest.ShortConverter;
+import org.xsnake.rpc.rest.StringConverter;
 
 public class XSnakeProviderContext implements ApplicationContextAware {
 
@@ -30,6 +37,8 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 	InvokeSupportHandler invokeSupportHandler=null;
 	
 	ApplicationContext applicationContext = null;
+	
+	ConverterRegister converterRegister = new ConverterRegister();
 	
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		
@@ -73,7 +82,37 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 			}
 		}
 		
+		if(registry.restMode){
+			RestSupportHandler restSupportHandler = new RestSupportHandler(this);
+			try {
+				restSupportHandler.init();
+			} catch (IOException e) {
+				e.printStackTrace();
+				throw new BeanCreationException("XSnake启动失败，RabbitMQ在创建Channel时出现异常。" + e.getMessage());
+			}
+		}
+		
+		//加载转换器
+		initConverterRegister();
+		
 		System.out.println("=======初始化结束=======");
+	}
+
+	private void initConverterRegister() {
+		converterRegister.register(String.class, new StringConverter());
+		converterRegister.register(Date.class, new DateConverter());
+		converterRegister.register(int.class, new IntegerConverter());
+		converterRegister.register(Integer.class, new IntegerConverter());
+		converterRegister.register(float.class, new FloatConverter());
+		converterRegister.register(Float.class, new FloatConverter());
+		converterRegister.register(Double.class, new DoubleConverter());
+		converterRegister.register(double.class, new DoubleConverter());
+		converterRegister.register(Long.class, new LongConverter());
+		converterRegister.register(long.class, new LongConverter());
+		converterRegister.register(Short.class, new ShortConverter());
+		converterRegister.register(short.class, new ShortConverter());
+		converterRegister.register(Boolean.class, new BooleanConverter());
+		converterRegister.register(boolean.class, new BooleanConverter());
 	}
 
 	public void close() throws IOException, InterruptedException {
@@ -108,5 +147,14 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 	public ApplicationContext getApplicationContext() {
 		return applicationContext;
 	}
+
+	public ConverterRegister getConverterRegister() {
+		return converterRegister;
+	}
+
+	public void setConverterRegister(ConverterRegister converterRegister) {
+		this.converterRegister = converterRegister;
+	}
+	
 	
 }
