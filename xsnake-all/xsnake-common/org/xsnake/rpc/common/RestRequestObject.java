@@ -57,4 +57,8 @@ public class RestRequestObject implements Serializable {
 		return createKey(httpMethod, path);
 	}
 	
+	public String getParameter(String name){
+		return paramters.get(name);
+	}
+	
 }

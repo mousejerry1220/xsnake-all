@@ -1,9 +1,9 @@
 package org.xsnake.rpc.provider.rest;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -14,6 +14,8 @@ import org.xsnake.rpc.common.ResponseObject;
 import org.xsnake.rpc.common.RestRequestObject;
 import org.xsnake.rpc.provider.InvokeObject;
 import org.xsnake.rpc.provider.MessageBody;
+import org.xsnake.rpc.rest.ConverterException;
+import org.xsnake.rpc.rest.IConverter;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -39,7 +41,6 @@ public class RestThread extends Thread{
 		}
 	}
 	
-	
 	ParameterNameDiscoverer parameterNameDiscoverer = new LocalVariableTableParameterNameDiscoverer();
 	public void process(MessageBody message) throws IOException {
 		final Channel channel = message.getChannel();
@@ -50,20 +51,15 @@ public class RestThread extends Thread{
 		RestRequestObject restRequestObject = MessageHandler.bytesToObject(body);
 		ResponseObject resultObject = new ResponseObject();
 		try {
-			Map<String,String> dataMap = new HashMap<String,String>();
 			String invokeKey = restRequestObject.toString();
-			InvokeObject invokeObject = handler.findInvokeObject(invokeKey,dataMap);
+			InvokeObject invokeObject = handler.findInvokeObject(invokeKey,restRequestObject.getParamters());
 			if(invokeObject == null){
 				throw new Exception("无效的访问路径!");
 			}
-			
-			dataMap.putAll(restRequestObject.getParamters());
-			
 			//获取方法的参数名称
 			Method targetMethod = invokeObject.getTarget().getClass().getDeclaredMethod(invokeObject.getMethod().getName(), invokeObject.getMethod().getParameterTypes());
 			String[] parameterNames = parameterNameDiscoverer.getParameterNames(targetMethod);
 			Class<?>[] parameterTypes = invokeObject.getMethod().getParameterTypes();
-			
 			//创建方法的访问参数
 			//TODO 这里优化做验证器和转换器
 			List<Object> args = new ArrayList<Object>();
@@ -71,23 +67,13 @@ public class RestThread extends Thread{
 			for(int i=0;i<parameterSize;i++){
 				String name = parameterNames[i];
 				Class<?> type = parameterTypes[i];
-				String value = dataMap.get(name);
-				if(type == String.class){
-					args.add(value);
-				}else if(type == int.class || type == Integer.class){
-					args.add(Integer.valueOf(value));
-				}else if(type == float.class || type == Float.class){
-					args.add(Float.valueOf(value));
-				}
-				//TODO
+				castValue(args, type, name, restRequestObject.getParamters());
 			}
-
 			//开始调用
 			Object target = invokeObject.getTarget();
 			Method method = invokeObject.getMethod();
 			method.setAccessible(true);
 			Object result = method.invoke(target, args.toArray());
-			
 			//返回结果
 			resultObject.setResultObject(result);
 			resultObject.setStatus(ResponseObject.SUCCESS);
@@ -99,4 +85,51 @@ public class RestThread extends Thread{
 			channel.basicAck(envelope.getDeliveryTag(), false);
 		}
 	}
+
+	private void castValue(List<Object> args, Class<?> type, String name,Map<String, String> paramters) {
+		String value = paramters.get(name);
+		//查找注册的转换器
+		IConverter<?> converter = handler.context.getConverterRegister().getConverter(type);
+		if(converter != null){
+			args.add(converter.converter(value));
+			return;
+		}
+		
+		//普通的java bean
+		try {
+			createParamterObject(type, paramters);
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		}
+		
+		//没有找到任何
+		args.add(null);
+			
+	}
+
+	private Object createParamterObject(Class<?> type, Map<String, String> paramters) throws InstantiationException, IllegalAccessException {
+			Object obj = type.getClass().newInstance();
+			for(Map.Entry<String, String> entry : paramters.entrySet()){
+				String k = entry.getKey();
+				String v = entry.getValue();
+				try {
+					Field field = type.getClass().getDeclaredField(k);
+					field.setAccessible(true);
+					Class<?> clazz = field.getType();
+					IConverter<?> converter = handler.context.getConverterRegister().getConverter(clazz);
+					if(converter !=null){
+						Object r =converter.converter(v);
+						field.set(obj, r);
+					}
+				} catch (NoSuchFieldException e) {
+					e.printStackTrace();
+				} catch (SecurityException e) {
+					e.printStackTrace();
+				}
+			}
+		return null;
+	}
+	
 }
