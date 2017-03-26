@@ -11,11 +11,16 @@
 	http://www.xsnake.org/schema/xsnake
 	http://www.xsnake.org/schema/xsnake/xsnake.xsd">
 
+	<context:component-scan base-package="org.xsnake" >
+		<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Service" />
+	</context:component-scan>
+
 	<xsnake:client>
-		<xsnake:property name="" value="aavalue" />
-		<xsnake:property name="bb" value="aaaaaa">
-		<xsnake:service id="aaa" interface="ddddd" />
-		<xsnake:service id="aaaa" interface="xxxx" />
+		<xsnake:propertys>
+			<xsnake:property name="messageQueue" value="rmq://127.0.0.1:5672?username=guest&amp;password=guest" />
+			<xsnake:property name="scanPackage" value="org.xsnake" />
+			<xsnake:property name="initTimeout" value="5" />
+		</xsnake:propertys>
 	</xsnake:client>
 
 </beans>

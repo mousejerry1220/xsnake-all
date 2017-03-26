@@ -22,18 +22,7 @@ public class RegistryConfig implements Serializable{
 	 * C服务器可以配置为5
 	 * 该值取值范围1~5
 	 */
-	int loadCapacity = 1;
-	/**
-	 * 服务器最大并发处理量，超出该并发数后，会进入排队状态，该值与loadCapacity成正比关系
-	 * 该数值决定了整个服务的最大并发能力
-	 * 如三台集群服务
-	 * A配置100
-	 * B配置200
-	 * C配置500
-	 * 那么:
-	 * 理论上最大并发为1000，假设每个服务平均执行0.5秒,那么1000/0.5秒=2000TPS。
-	 * 嗯是的，理论上！
-	 */
+
 	int maxThread = 100;
 	
 	/**
@@ -76,9 +65,14 @@ public class RegistryConfig implements Serializable{
 	String messageQueue;
 
 	/**
-	 * java调用方式
+	 * java RMQ调用方式
 	 */
-	boolean invokeMode = true;
+	boolean rmqMode = false;
+	
+	/**
+	 * java RMI调用方式 
+	 */
+	boolean rmiMode = true;
 	
 	/**
 	 * rest调用方式的服务端
@@ -96,20 +90,14 @@ public class RegistryConfig implements Serializable{
 	
 	String environment = "test";
 	
+	String rmiHost = null;
+	
 	public int getTimeout() {
 		return timeout;
 	}
 
 	public void setTimeout(int timeout) {
 		this.timeout = timeout;
-	}
-
-	public int getLoadCapacity() {
-		return loadCapacity;
-	}
-
-	public void setLoadCapacity(int loadCapacity) {
-		this.loadCapacity = loadCapacity;
 	}
 
 	public int getMaxThread() {
@@ -150,14 +138,6 @@ public class RegistryConfig implements Serializable{
 
 	public void setMessageQueue(String messageQueue) {
 		this.messageQueue = messageQueue;
-	}
-
-	public boolean isInvokeMode() {
-		return invokeMode;
-	}
-
-	public void setInvokeMode(boolean invokeMode) {
-		this.invokeMode = invokeMode;
 	}
 
 	public boolean isRestMode() {
@@ -214,6 +194,30 @@ public class RegistryConfig implements Serializable{
 
 	public void setEnvironment(String environment) {
 		this.environment = environment;
+	}
+
+	public boolean isRmqMode() {
+		return rmqMode;
+	}
+
+	public void setRmqMode(boolean rmqMode) {
+		this.rmqMode = rmqMode;
+	}
+
+	public boolean isRmiMode() {
+		return rmiMode;
+	}
+
+	public void setRmiMode(boolean rmiMode) {
+		this.rmiMode = rmiMode;
+	}
+
+	public String getRmiHost() {
+		return rmiHost;
+	}
+
+	public void setRmiHost(String rmiHost) {
+		this.rmiHost = rmiHost;
 	}
 	
 }

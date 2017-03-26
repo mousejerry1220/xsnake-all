@@ -2,9 +2,12 @@ package org.xsnake.rpc.connector;
 
 import java.io.IOException;
 import java.net.ConnectException;
+import java.util.List;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
@@ -108,6 +111,36 @@ public class ZooKeeperWrapper {
 	
 	public void delete(String path) throws InterruptedException, KeeperException{
 		_zooKeeper.delete(path, -1);
+	}
+	
+	public void onChildrenChange(String path,Watcher watcher) throws KeeperException, InterruptedException{
+		_zooKeeper.getChildren(path, new PermanentWatcher(_zooKeeper,path,watcher));
+	}
+	
+	public List<String> getChildren(String path) throws KeeperException, InterruptedException{
+		return _zooKeeper.getChildren(path,null);	
+	}
+	
+	public static class PermanentWatcher implements Watcher{
+		ZooKeeper zk;
+		String path;
+		Watcher watcher;
+		public PermanentWatcher(ZooKeeper _zooKeeper,String path,Watcher watcher){
+			this.zk = _zooKeeper;
+			this.path = path;
+			this.watcher = watcher;
+		}
+		@Override
+		public void process(WatchedEvent event) {
+			try {
+				watcher.process(event);
+				zk.getChildren(path, new PermanentWatcher(zk,path,watcher));
+			} catch (KeeperException e) {
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public void close() throws InterruptedException{
