@@ -1,10 +1,14 @@
 package org.xsnake.rpc.provider;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.zookeeper.KeeperException;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.context.ApplicationContext;
@@ -40,6 +44,10 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 	
 	ConverterRegister converterRegister = new ConverterRegister();
 	
+	RemoteRegistryConfig remoteRegistryConfig = new RemoteRegistryConfig();
+	
+	String localAddress;
+	
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		
 		this.applicationContext = applicationContext;
@@ -62,6 +70,36 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 			throw new BeanCreationException("XSnake启动失败，无法连接到ZooKeeper服务器。" + e.getMessage());
 		}
 
+		//获取本机IP
+		localAddress = getLocalHost();
+		
+		//初始化XSNAKE主目录
+		try {
+			zooKeeper.dir("/"+registry.getEnvironment());
+			zooKeeper.dir("/"+registry.getEnvironment()+"/XSNAKE");
+			zooKeeper.dir("/"+registry.getEnvironment()+RemoteRegistryConfig.REMOTE_REGISTRY_CONFIG_PATH);
+		} catch (Exception e) {
+			throw new BeanCreationException("XSnake启动失败，初始化数据失败。" + e.getMessage());
+		}
+		
+		//读取远程配置
+		try {
+			remoteRegistryConfig.loadConfig(this);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}  
+		
+		if(remoteRegistryConfig.isReady()){
+			BeanUtils.copyProperties(remoteRegistryConfig, registry);
+		}else{
+			BeanUtils.copyProperties(registry, remoteRegistryConfig);
+			try {
+				remoteRegistryConfig.uploadConfig(this);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		
 		//连接RabbitMQ
 		try {
 			RabbitMQConfig rabbitMQConfig = RabbitMQConfig.getConfigure(registry.messageQueue);
@@ -98,6 +136,15 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 		System.out.println("=======初始化结束=======");
 	}
 
+	private String getLocalHost() {
+		try {
+			return InetAddress.getLocalHost().getHostAddress();
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+			throw new BeanCreationException("创建对象失败，无法自动获取主机地址");
+		}
+	}
+	
 	private void initConverterRegister() {
 		converterRegister.register(String.class, new StringConverter());
 		converterRegister.register(Date.class, new DateConverter());
@@ -124,24 +171,12 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 		return registry;
 	}
 
-	public void setRegistry(RegistryConfig registry) {
-		this.registry = registry;
-	}
-
 	public ZooKeeperWrapper getZooKeeper() {
 		return zooKeeper;
 	}
 
-	public void setZooKeeper(ZooKeeperWrapper zooKeeper) {
-		this.zooKeeper = zooKeeper;
-	}
-
 	public RabbitMQWrapper getRabbitMQ() {
 		return rabbitMQ;
-	}
-
-	public void setRabbitMQ(RabbitMQWrapper rabbitMQ) {
-		this.rabbitMQ = rabbitMQ;
 	}
 
 	public ApplicationContext getApplicationContext() {
@@ -152,8 +187,8 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 		return converterRegister;
 	}
 
-	public void setConverterRegister(ConverterRegister converterRegister) {
-		this.converterRegister = converterRegister;
+	public String getLocalAddress() {
+		return localAddress;
 	}
 	
 	
