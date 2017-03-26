@@ -1,7 +1,11 @@
 package org.xsnake.rpc.provider;
 
-public class RegistryConfig {
+import java.io.Serializable;
 
+public class RegistryConfig implements Serializable{
+
+	private static final long serialVersionUID = 1L;
+	
 	/**
 	 * 连接到ZooKeeper的超时时间，超出该时间限制则启动失败。单位:秒
 	 */
@@ -89,6 +93,8 @@ public class RegistryConfig {
 	 * spring boot 支持 tomcat ，jetty 默认tomcat
 	 */
 	String restContainer = "tomcat"; 
+	
+	String environment = "test";
 	
 	public int getTimeout() {
 		return timeout;
@@ -200,6 +206,14 @@ public class RegistryConfig {
 
 	public void setRestContainer(String restContainer) {
 		this.restContainer = restContainer;
+	}
+
+	public String getEnvironment() {
+		return environment;
+	}
+
+	public void setEnvironment(String environment) {
+		this.environment = environment;
 	}
 	
 }

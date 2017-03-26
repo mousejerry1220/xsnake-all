@@ -81,12 +81,12 @@ public class RestSupportHandler {
 	}
 
 	/**
-	 * 创建Channel，消费 XSNAKE_INVOKE_${APPLICATION} 队列来的请求。
+	 * 创建Channel，消费 ${ENVIRONMENT}_XSNAKE_INVOKE 队列来的请求。
 	 * @param context
 	 * @throws IOException
 	 */
 	private void listen(XSnakeProviderContext context) throws IOException{
-		String queueName = "XSNAKE_REST_"+context.getRegistry().getApplication();
+		String queueName = context.getRegistry().getEnvironment() + "XSNAKE_REST";
 		final Channel channel = context.getRabbitMQ().getConnection().createChannel();
 		try {
 			channel.queueDeclare(queueName, false, false, false, null);
