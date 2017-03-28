@@ -23,7 +23,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xsnake.rpc.api.Remote;
-import org.xsnake.rpc.consumer.rmq.XSnakeProxyFactory;
+import org.xsnake.rpc.consumer.rmi.XSnakeProxyFactory;
 
 public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 
@@ -79,49 +79,54 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 	}
 
 	private void scanPacket() {
-		String basePackage = propertyMap.get("scanPackage");
-		if(basePackage == null){
+		String scanPackage = propertyMap.get("scanPackage");
+		if(scanPackage == null){
 			throw new BeanCreationException("没有指定要扫描的包位置");
 		}
+		String[] basePackages = scanPackage.split(";");
 		
-		//扫描符合条件的接口
-		ResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver();
-		String DEFAULT_RESOURCE_PATTERN = "**/*.class";
-		MetadataReaderFactory metadataReaderFactory = new CachingMetadataReaderFactory(resourcePatternResolver);
-		String packageSearchPath = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + basePackage.replace('.', '/') + "/" + DEFAULT_RESOURCE_PATTERN;
-		Resource[] resources = null;
-		
-		try {
-			resources = resourcePatternResolver.getResources(packageSearchPath);
-		} catch (IOException e) {
-			e.printStackTrace();
-			throw new BeanCreationException("包扫描失败:"+e.getMessage());
-		}
-		
-		for (Resource resource : resources) {
-			if (resource.isReadable()) {
-				try {
-					MetadataReader metadataReader =  metadataReaderFactory.getMetadataReader(resource);
-					ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
-					sbd.setResource(resource);
-					sbd.setSource(resource);
-					if(sbd.getMetadata().isInterface() && !sbd.getMetadata().isAnnotation()){
-						String className = sbd.getMetadata().getClassName();
-						Class<?> cls = Class.forName(className);
-						Remote remote = cls.getAnnotation(Remote.class);
-						if(remote!=null){
-							String beanName = className.substring(className.lastIndexOf('.') + 1, className.length());
-							System.out.println(beanName);
-							serviceMap.put(beanName, cls);
+		for(String basePackage : basePackages){
+			if(StringUtils.isEmpty(basePackage)){
+				continue;
+			}
+			//扫描符合条件的接口
+			ResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver();
+			String DEFAULT_RESOURCE_PATTERN = "**/*.class";
+			MetadataReaderFactory metadataReaderFactory = new CachingMetadataReaderFactory(resourcePatternResolver);
+			String packageSearchPath = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX + basePackage.replace('.', '/') + "/" + DEFAULT_RESOURCE_PATTERN;
+			Resource[] resources = null;
+			
+			try {
+				resources = resourcePatternResolver.getResources(packageSearchPath);
+			} catch (IOException e) {
+				e.printStackTrace();
+				throw new BeanCreationException("包扫描失败:"+e.getMessage());
+			}
+			
+			for (Resource resource : resources) {
+				if (resource.isReadable()) {
+					try {
+						MetadataReader metadataReader =  metadataReaderFactory.getMetadataReader(resource);
+						ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
+						sbd.setResource(resource);
+						sbd.setSource(resource);
+						if(sbd.getMetadata().isInterface() && !sbd.getMetadata().isAnnotation()){
+							String className = sbd.getMetadata().getClassName();
+							Class<?> cls = Class.forName(className);
+							Remote remote = cls.getAnnotation(Remote.class);
+							if(remote!=null){
+								String beanName = className.substring(className.lastIndexOf('.') + 1, className.length());
+								System.out.println(beanName);
+								serviceMap.put(beanName, cls);
+							}
 						}
 					}
-				}
-				catch (Throwable ex) {
-					throw new BeanDefinitionStoreException(
-							"Failed to read candidate component class: " + resource, ex);
+					catch (Throwable ex) {
+						throw new BeanDefinitionStoreException(
+								"Failed to read candidate component class: " + resource, ex);
+					}
 				}
 			}
 		}
 	}
-
 }

@@ -63,21 +63,12 @@ public class RegistryConfig implements Serializable{
 	 * RPC需要用到的MQ地址
 	 */
 	String messageQueue;
-
-	/**
-	 * java RMQ调用方式
-	 */
-	boolean rmqMode = false;
 	
 	/**
 	 * java RMI调用方式 
 	 */
 	boolean rmiMode = true;
 	
-	/**
-	 * rest调用方式的服务端
-	 */
-	boolean restMode = false;
 	
 	/**
 	 * rest客户端，主要提供转发服务
@@ -140,13 +131,6 @@ public class RegistryConfig implements Serializable{
 		this.messageQueue = messageQueue;
 	}
 
-	public boolean isRestMode() {
-		return restMode;
-	}
-
-	public void setRestMode(boolean restMode) {
-		this.restMode = restMode;
-	}
 
 	public boolean isRestClient() {
 		return restClient;
@@ -194,14 +178,6 @@ public class RegistryConfig implements Serializable{
 
 	public void setEnvironment(String environment) {
 		this.environment = environment;
-	}
-
-	public boolean isRmqMode() {
-		return rmqMode;
-	}
-
-	public void setRmqMode(boolean rmqMode) {
-		this.rmqMode = rmqMode;
 	}
 
 	public boolean isRmiMode() {

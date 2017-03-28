@@ -1,10 +1,15 @@
 package org.xsnake.rpc.provider.rmi;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 import org.xsnake.rpc.api.Remote;
 
@@ -17,6 +22,8 @@ public class XSnakeInterceptorHandler implements InvocationHandler {
 	String nodeName;
 	
 	Remote remote;
+	
+	Map<String,SemaphoreWrapper> methodSemaphore = new HashMap<String,SemaphoreWrapper>();
 	
 	public XSnakeInterceptorHandler(Class<?> interfaceClass,Object targetObject,String nodeName,Semaphore maxThread){
 		this.interfaceClass = interfaceClass;
@@ -41,14 +48,7 @@ public class XSnakeInterceptorHandler implements InvocationHandler {
 	    try {
 	    	Object result = null;
 			try{
-				Method interfaceMethod=null; //给方法默认的信号量，初始化时候读取远程的配置，每个方法一个map存它所有的信号量对象，通过信号量的availablePermits方法，来提示监控，修改远程参数，
-				try{
-					interfaceMethod = interfaceClass.getMethod(method.getName(), method.getParameterTypes());
-				}catch(Exception e){
-					
-				}
-				result = method.invoke(targetObject, args);
-				TimeUnit.SECONDS.sleep(2);
+				result = invoke(method, args);
 			}catch(Exception e){
 				throw e;
 			}
@@ -57,6 +57,57 @@ public class XSnakeInterceptorHandler implements InvocationHandler {
 	    	//nodeName,interfaceClass,method.getName();
 	    	maxThread.release();
 	    }
+	}
+
+	private String methodKey(Method method){
+		StringBuffer key = new StringBuffer();
+		key.append(interfaceClass.getName())
+		.append(".")
+		.append(method.getName())
+		.append("(")
+		.append(Arrays.toString(method.getParameterTypes()))
+		.append(")");
+		return key.toString();
+	} 
+	
+	/**
+	 * 获取方法自身的信号量并控制
+	 * @param method
+	 * @param args
+	 * @return
+	 * @throws IllegalAccessException
+	 * @throws InvocationTargetException
+	 * @throws InterruptedException
+	 */
+	private Object invoke(Method method, Object[] args) throws IllegalAccessException, InvocationTargetException, InterruptedException {
+		SemaphoreWrapper methodSemaphore = getMethodSemaphore(method);
+		methodSemaphore.acquire();
+		Object result;
+		try{
+			result = method.invoke(targetObject, args);
+		}finally{
+			methodSemaphore.release();
+		}
+		return result;
+	}
+
+	/**
+	 * 通过方法获取到该方法的信号量
+	 * @param method
+	 * @return
+	 */
+	private SemaphoreWrapper getMethodSemaphore(Method method) {
+		String methodKey = methodKey(method);
+		SemaphoreWrapper semaphore = methodSemaphore.get(methodKey);
+		if(semaphore == null){
+			semaphore = new SemaphoreWrapper(interfaceClass,method,50);
+			methodSemaphore.put(methodKey, semaphore);
+		}
+		return semaphore;
+	}
+	
+	public List<SemaphoreWrapper> getMethodSemaphoreList(){
+		return new ArrayList<SemaphoreWrapper>(methodSemaphore.values());
 	}
 
 }

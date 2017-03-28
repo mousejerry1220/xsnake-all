@@ -1,4 +1,4 @@
-package org.xsnake.rpc.util;
+package org.xsnake.rpc.common;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

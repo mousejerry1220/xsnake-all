@@ -7,6 +7,8 @@ import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMIServerSocketFactory;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 
@@ -18,16 +20,13 @@ import org.xsnake.rpc.api.Remote;
 import org.xsnake.rpc.common.ReflectionUtil;
 import org.xsnake.rpc.connector.ZooKeeperConnector;
 import org.xsnake.rpc.connector.ZooKeeperWrapper;
-import org.xsnake.rpc.provider.SupportHandler;
 import org.xsnake.rpc.provider.XSnakeProviderContext;
 
-public class RMISupportHandler extends SupportHandler {
+public class RMISupportHandler {
 
 	ZooKeeperWrapper zooKeeper = null;
 	
 	private int defaultPort = 16785;
-	
-	private String servicePath = null;
 	
 	private String host = null;
 	
@@ -36,8 +35,13 @@ public class RMISupportHandler extends SupportHandler {
 	
 	Semaphore maxThread;
 	
-	@Override
-	public void init(XSnakeProviderContext context) throws BeanCreationException {
+	XSnakeProviderContext context;
+	
+	List<XSnakeInterceptorHandler> handlerList = new ArrayList<XSnakeInterceptorHandler>(); 
+	
+	public RMISupportHandler(XSnakeProviderContext context) throws BeanCreationException {
+		
+		this.context = context;
 		
 		maxThread = new Semaphore(context.getRegistry().getMaxThread());
 		
@@ -60,12 +64,10 @@ public class RMISupportHandler extends SupportHandler {
 		System.setProperty("java.rmi.server.hostname", host);
 		
 		// 初始化XSNAKE主目录
-
-		servicePath = "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/SERVICES";
 		try {
 			zooKeeper.dir("/XSNAKE");
-			zooKeeper.dir("/XSNAKE/" + context.getRegistry().getEnvironment());
-			zooKeeper.dir(servicePath);
+			zooKeeper.dir(getRootPath());
+			zooKeeper.dir(getServicePath());
 		} catch (Exception e) {
 			throw new BeanCreationException("XSnake启动失败，初始化数据失败。" + e.getMessage());
 		}
@@ -122,7 +124,8 @@ public class RMISupportHandler extends SupportHandler {
 						RmiServiceExporter se = new RmiServiceExporter();
 						String nodeName = UUID.randomUUID().toString();
 						se.setServiceName(nodeName);
-						Object proxy = new XSnakeInterceptorHandler(interFace,target,nodeName,maxThread).createProxy();
+						XSnakeInterceptorHandler handler = new XSnakeInterceptorHandler(interFace,target,nodeName,maxThread);
+						Object proxy = handler.createProxy();
 						se.setService(proxy);
 						se.setAlwaysCreateRegistry(false);
 						se.setRegistryPort(port);
@@ -131,10 +134,12 @@ public class RMISupportHandler extends SupportHandler {
 						se.setServerSocketFactory(server);
 						se.afterPropertiesSet();
 						String url = String.format("rmi://%s:%d/%s", host, port, nodeName);
+						handlerList.add(handler);
 						try {
-							zooKeeper.dir(servicePath+"/"+interFace.getName());
-							zooKeeper.tempDir(servicePath+"/"+interFace.getName()+"/"+nodeName, url);
-							System.out.println(url);
+							zooKeeper.dir(getServicePath()+"/"+interFace.getName());
+							zooKeeper.tempDir(getServicePath()+"/"+interFace.getName()+"/"+nodeName, url);
+							zooKeeper.dir(getServicePath()+"/"+host+":"+port);
+							zooKeeper.tempDir(getServicePath()+"/"+host+":"+port+"/"+interFace.getName());
 						}  catch (Exception e) {
 							e.printStackTrace();
 							throw new BeanCreationException(e.getMessage());
@@ -149,4 +154,28 @@ public class RMISupportHandler extends SupportHandler {
 		}
 	}
 
+	public ZooKeeperWrapper getZooKeeper() {
+		return zooKeeper;
+	}
+	
+	public String getRootPath(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment();
+	}
+
+	public String getServicePath(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/SERVICES";
+	}
+	
+	public String getAllInvokeTimesPath(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/INVOKE_TIMES_ALL";
+	}
+	
+	public String getInvokeTimesPath(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/INVOKE_TIMES";
+	}
+
+	public List<XSnakeInterceptorHandler> getHandlerList() {
+		return handlerList;
+	}
+	
 }

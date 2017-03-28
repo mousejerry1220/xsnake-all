@@ -2,7 +2,6 @@ package org.xsnake.rpc.provider;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.Semaphore;
 
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeansException;
@@ -10,23 +9,17 @@ import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.xsnake.rpc.provider.rmi.RMISupportHandler;
-import org.xsnake.rpc.provider.rmq.RabbitMQSupportHandler;
-import org.xsnake.rpc.provider.rmqrest.RestSupportHandler;
 
 public class XSnakeProviderContext implements ApplicationContextAware {
 
 	RegistryConfig registry = new RegistryConfig();
 	
-	RabbitMQSupportHandler rabbitMQSupportHandler = new RabbitMQSupportHandler();
-	
-	RestSupportHandler restSupportHandler = new RestSupportHandler();
-	
-	RMISupportHandler rmiSupportHandler = new RMISupportHandler();
+	RMISupportHandler rmiSupportHandler ;
 	
 	ApplicationContext applicationContext = null;
 	
 	String localAddress;
-	
+
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		
 		this.applicationContext = applicationContext;
@@ -58,18 +51,9 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 		}
 		**/
 		
-		//RMQ远程调用模式
-		if(registry.rmqMode){
-			rabbitMQSupportHandler.init(this);
-		}
-		
 		//RMI远程调用模式
 		if(registry.rmiMode){
-			rmiSupportHandler.init(this);
-		}
-		
-		if(registry.restMode){
-			restSupportHandler.init(this);
+			rmiSupportHandler= new RMISupportHandler(this);
 		}
 		
 		System.out.println("=======初始化结束=======");
@@ -94,6 +78,10 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 
 	public String getLocalAddress() {
 		return localAddress;
+	}
+
+	public RMISupportHandler getRmiSupportHandler() {
+		return rmiSupportHandler;
 	}
 	
 }

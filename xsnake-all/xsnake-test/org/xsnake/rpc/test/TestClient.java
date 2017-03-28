@@ -17,7 +17,7 @@ public class TestClient {
 		propertyMap.put("environment", "test");
 		XSnakeProxyFactory factory = new XSnakeProxyFactory(propertyMap);
 		final IMyService s = factory.getService(IMyService.class);
-		for(int i=0;i<100;i++){
+		for(int i=0;i<200;i++){
 			new Thread(){
 				public void run() {
 					System.out.println(s.todo("aaaaaa"));
