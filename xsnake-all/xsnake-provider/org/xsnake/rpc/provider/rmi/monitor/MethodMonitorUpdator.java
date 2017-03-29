@@ -29,7 +29,7 @@ public class MethodMonitorUpdator extends Thread{
 				}
 			}
 			try {
-				TimeUnit.MINUTES.sleep(1);
+				TimeUnit.SECONDS.sleep(context.getRegistry().getMonitorInterval());
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -43,11 +43,9 @@ public class MethodMonitorUpdator extends Thread{
 	}
 	
 	public void recordAllTimes(SemaphoreWrapper methodInfo) throws KeeperException, InterruptedException, IOException{
-		
 		int times = methodInfo.resetTimes();//调用次数，记录后清空重置为0
 		Method method = methodInfo.getMethod();
 		Class<?> interFace = methodInfo.getInterFace();
-		
 		Date now = new Date();
 		String methodName = method.getName() + "("+Arrays.toString(method.getParameterTypes())+")";
 		String allTimesPath = context.getRmiSupportHandler().getAllInvokeTimesPath();

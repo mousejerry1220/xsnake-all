@@ -140,7 +140,10 @@ public class RMISupportHandler {
 						try {
 							zooKeeper.dir(getServicePath()+"/"+interFace.getName());
 							zooKeeper.tempDir(getServicePath()+"/"+interFace.getName()+"/"+nodeName, url);
-							String nodes = getServicePath()+"/"+host+"_"+port;
+							
+							String nodeRoot = getRootPath() + "/NODES";
+							zooKeeper.dir(nodeRoot);
+							String nodes = nodeRoot+"/"+host+"_"+port;
 							zooKeeper.dir(nodes);
 							zooKeeper.tempDir(nodes+"/"+interFace.getName());
 						}  catch (Exception e) {
@@ -171,10 +174,6 @@ public class RMISupportHandler {
 	
 	public String getAllInvokeTimesPath(){
 		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/INVOKE_TIMES_ALL";
-	}
-	
-	public String getInvokeTimesPath(){
-		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/INVOKE_TIMES";
 	}
 
 	public List<XSnakeInterceptorHandler> getHandlerList() {

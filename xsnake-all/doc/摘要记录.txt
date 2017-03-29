@@ -8,3 +8,10 @@
 
 xsnake-server项目主要负责：jar上传分发，jar管理，服务器监控参数
 xsnake-admin远程参数配置，远程各个服务器的状态显示。缓存重置
+
+
+
+
+rest测试入口
+
+接口doc描述

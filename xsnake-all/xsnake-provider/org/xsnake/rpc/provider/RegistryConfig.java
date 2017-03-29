@@ -83,6 +83,8 @@ public class RegistryConfig implements Serializable{
 	
 	String rmiHost = null;
 	
+	int monitorInterval = 60;
+	
 	public int getTimeout() {
 		return timeout;
 	}
@@ -194,6 +196,14 @@ public class RegistryConfig implements Serializable{
 
 	public void setRmiHost(String rmiHost) {
 		this.rmiHost = rmiHost;
+	}
+
+	public int getMonitorInterval() {
+		return monitorInterval;
+	}
+
+	public void setMonitorInterval(int monitorInterval) {
+		this.monitorInterval = monitorInterval;
 	}
 	
 }
