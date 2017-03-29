@@ -1,9 +1,10 @@
 package org.xsnake.rpc.test;
 
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-//@SpringBootApplication
+@SpringBootApplication
 public class TestClient {
 
 	static ApplicationContext ctx;

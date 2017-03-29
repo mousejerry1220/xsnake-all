@@ -93,7 +93,6 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 		return null;
 	}
 	private void scanPacket(String scanPackage) {
-		
 		if(scanPackage == null){
 			throw new BeanCreationException("没有指定要扫描的包位置");
 		}
