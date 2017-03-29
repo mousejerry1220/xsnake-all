@@ -1,7 +1,10 @@
 package org.xsnake.rpc.consumer.proxy;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.BeanCreationException;
@@ -23,13 +26,19 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xsnake.rpc.api.Remote;
+import org.xsnake.rpc.api.RequestMethod;
+import org.xsnake.rpc.api.Rest;
 import org.xsnake.rpc.consumer.rmi.XSnakeProxyFactory;
+import org.xsnake.rpc.rest.RestRequestObject;
+import org.xsnake.rpc.rest.TargetMethod;
 
 public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 
 	Map<String, String> propertyMap = new HashMap<String, String>();
 
 	Map<String, Class<?>> serviceMap = new HashMap<String, Class<?>>();
+	
+	Map<String, Method> restMap = new HashMap<String, Method>();
 	
 	public BeanDefinition parse(Element element, ParserContext parserContext) {
 		
@@ -50,7 +59,7 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 			propertyMap.put(key, value.trim());
 		}
 		
-		scanPacket();
+		scanPacket(parserContext);
 		
 		// 设置连接环境
 		String environment = StringUtils.isEmpty(propertyMap.get("environment")) ? "test" : propertyMap.get("environment");
@@ -70,15 +79,15 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 			beanDefinition.setFactoryBeanName("xsnakeProxy");
 			beanDefinition.setFactoryMethodName("getService");
 			values = new ConstructorArgumentValues();
-			values.addIndexedArgumentValue(0, environment);
-			values.addIndexedArgumentValue(1, interFace);
+			values.addIndexedArgumentValue(0, interFace);
 			beanDefinition.setConstructorArgumentValues(values);
 			parserContext.getRegistry().registerBeanDefinition(serviceId, beanDefinition);
 		}
+		
 		return null;
 	}
 
-	private void scanPacket() {
+	private void scanPacket(ParserContext parserContext) {
 		String scanPackage = propertyMap.get("scanPackage");
 		if(scanPackage == null){
 			throw new BeanCreationException("没有指定要扫描的包位置");
@@ -118,6 +127,7 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 								String beanName = className.substring(className.lastIndexOf('.') + 1, className.length());
 								System.out.println(beanName);
 								serviceMap.put(beanName, cls);
+								initRestService(parserContext,cls);
 							}
 						}
 					}
@@ -129,4 +139,21 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 			}
 		}
 	}
+
+	List<TargetMethod> targetList = new ArrayList<TargetMethod>();
+	
+	private void initRestService(ParserContext parserContext,Class<?> clazz) {
+		Method[] methods = clazz.getDeclaredMethods();
+		for (Method method : methods) {
+			Rest rest = method.getAnnotation(Rest.class);
+			if(rest !=null){
+				RequestMethod[] httpMethods = rest.method();
+				for(RequestMethod httpMethod : httpMethods){
+					String restPath = RestRequestObject.createKey(httpMethod.toString(),rest.value());
+					targetList.add(new TargetMethod(restPath, clazz, method));
+				}
+			}
+		}
+	}
+	
 }

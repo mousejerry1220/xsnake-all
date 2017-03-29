@@ -35,9 +35,13 @@ public class ZooKeeperWrapper {
 	 * @throws IOException
 	 */
 	public void tempDir(String node,String data) throws KeeperException, InterruptedException, IOException {
-		dir(node, data, CreateMode.EPHEMERAL);
+		dir(node, data.getBytes(), CreateMode.EPHEMERAL);
 	}
 
+	public void tempDir(String node,byte[] data) throws KeeperException, InterruptedException, IOException {
+		dir(node, data, CreateMode.EPHEMERAL);
+	}
+	
 	/**
 	 * 创建目录
 	 * @param node
@@ -58,6 +62,11 @@ public class ZooKeeperWrapper {
 	 * @throws IOException
 	 */
 	public void dir(String node,String data) throws KeeperException, InterruptedException, IOException {
+		dir(node, data.getBytes(), CreateMode.PERSISTENT);
+	}
+	
+	
+	public void dir(String node,byte[] data) throws KeeperException, InterruptedException, IOException {
 		dir(node, data, CreateMode.PERSISTENT);
 	}
 	
@@ -70,8 +79,7 @@ public class ZooKeeperWrapper {
 	 * @throws InterruptedException
 	 * @throws IOException
 	 */
-	public void dir(String path,String value,CreateMode createMode)throws KeeperException, InterruptedException, IOException{
-		byte[] data = value != null ? value.getBytes() : null;
+	public void dir(String path,byte[] data,CreateMode createMode)throws KeeperException, InterruptedException, IOException{
 		if(!_zooKeeper.getState().isConnected()){
 			throw new ConnectException(" zookeeper connection loss !");
 		}
@@ -89,12 +97,12 @@ public class ZooKeeperWrapper {
 	 * @throws KeeperException
 	 * @throws InterruptedException
 	 */
-	public String dirData(String path) throws KeeperException, InterruptedException{
+	public byte[] dirData(String path) throws KeeperException, InterruptedException{
 		byte[] data = _zooKeeper.getData(path, null, null);
 		if(data == null){
 			return null;
 		}
-		return new String(data);
+		return data;
 	}
 	
 	

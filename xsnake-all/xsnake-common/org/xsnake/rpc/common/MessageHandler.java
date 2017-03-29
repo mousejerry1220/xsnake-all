@@ -40,12 +40,12 @@ public class MessageHandler {
 	
 	public static String objectToString(Object object) throws IOException{
 		byte[] datas = objectToBytes(object);
-		return new String(Base64.getEncoder().encode(datas));
+		return new String(datas);
 	}
 	
 	public static Object stringToObject(String str) throws IOException{
 		byte[] bytes = str.getBytes();
-		return bytesToObject(new String(Base64.getDecoder().decode(bytes)).getBytes());
+		return bytesToObject(bytes);
 	}
 	
 }

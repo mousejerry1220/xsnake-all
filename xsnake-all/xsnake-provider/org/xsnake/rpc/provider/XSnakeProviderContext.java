@@ -9,6 +9,7 @@ import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.xsnake.rpc.provider.rmi.RMISupportHandler;
+import org.xsnake.rpc.provider.rmi.monitor.MethodMonitorUpdator;
 
 public class XSnakeProviderContext implements ApplicationContextAware {
 
@@ -55,6 +56,8 @@ public class XSnakeProviderContext implements ApplicationContextAware {
 		if(registry.rmiMode){
 			rmiSupportHandler= new RMISupportHandler(this);
 		}
+		
+		new MethodMonitorUpdator(this).start();
 		
 		System.out.println("=======初始化结束=======");
 	}

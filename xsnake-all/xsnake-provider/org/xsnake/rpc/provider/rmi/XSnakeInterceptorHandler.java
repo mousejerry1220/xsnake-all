@@ -44,7 +44,6 @@ public class XSnakeInterceptorHandler implements InvocationHandler {
 
 	public Object invoke(Object proxy, Method method, Object[] args)throws Throwable {
 		maxThread.acquire();
-		System.out.println(maxThread.availablePermits());
 	    try {
 	    	Object result = null;
 			try{
@@ -54,7 +53,6 @@ public class XSnakeInterceptorHandler implements InvocationHandler {
 			}
 			return result;
 	    }  finally {
-	    	//nodeName,interfaceClass,method.getName();
 	    	maxThread.release();
 	    }
 	}
@@ -80,6 +78,14 @@ public class XSnakeInterceptorHandler implements InvocationHandler {
 	 * @throws InterruptedException
 	 */
 	private Object invoke(Method method, Object[] args) throws IllegalAccessException, InvocationTargetException, InterruptedException {
+		
+		//如果非接口方法会进入异常捕获。则直接返回
+		try {
+			interfaceClass.getMethod(method.getName(), method.getParameterTypes());
+		} catch (Exception e) {
+			return method.invoke(targetObject, args);
+		}
+		
 		SemaphoreWrapper methodSemaphore = getMethodSemaphore(method);
 		methodSemaphore.acquire();
 		Object result;
