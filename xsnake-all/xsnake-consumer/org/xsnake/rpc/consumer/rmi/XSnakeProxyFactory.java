@@ -1,14 +1,16 @@
 package org.xsnake.rpc.consumer.rmi;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.BeanCreationException;
 import org.xsnake.rpc.connector.ZooKeeperConnector;
 import org.xsnake.rpc.connector.ZooKeeperWrapper;
+import org.xsnake.rpc.rest.RestPathService;
+import org.xsnake.rpc.rest.TargetMethod;
 
 public class XSnakeProxyFactory {
-
 	
 	String environment;
 	
@@ -19,7 +21,7 @@ public class XSnakeProxyFactory {
 		String _zooKeeper = propertyMap.get("zooKeeper");
 		int timeout = 10;
 		try{
-			timeout = propertyMap.get("initTimeout") == null ? 10 : Integer.parseInt(propertyMap.get("timeout"));
+			timeout = propertyMap.get("initTimeout") == null ? 10 : Integer.parseInt(propertyMap.get("initTimeout"));
 		}catch (NumberFormatException e){
 			throw new BeanCreationException("XSnake启动失败，配置参数 initTimeout 错误，必须为数字类型，以秒计算");
 		}

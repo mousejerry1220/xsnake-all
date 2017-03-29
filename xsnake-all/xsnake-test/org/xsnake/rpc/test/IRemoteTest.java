@@ -6,5 +6,5 @@ import org.xsnake.rpc.api.Rest;
 public interface IRemoteTest {
 
 	@Rest(value="/test/{name}/{aaa}")
-	String sayHello(String name);
+	String sayHello(TestParam test);
 }

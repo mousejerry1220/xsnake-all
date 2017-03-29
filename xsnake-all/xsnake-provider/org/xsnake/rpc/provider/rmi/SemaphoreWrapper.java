@@ -10,6 +10,7 @@ public class SemaphoreWrapper {
 	
 	int maxThread;
 	
+	//被缓存的调用次数，记录后被重置
 	Integer times = 0;
 	
 	Class<?> interFace;
@@ -23,6 +24,7 @@ public class SemaphoreWrapper {
 	Date maxCallNumDate = new Date();
 	
 	public SemaphoreWrapper(Class<?> interFace,Method method, int maxThread){
+		this.maxThread = maxThread;
 		semaphore = new Semaphore(maxThread);
 		this.interFace = interFace;
 		this.method = method;
@@ -45,6 +47,7 @@ public class SemaphoreWrapper {
 	}
 	
 	public void acquire() throws InterruptedException{
+		updateTimes();
 		semaphore.acquire();
 	}
 	
@@ -53,25 +56,21 @@ public class SemaphoreWrapper {
 		semaphore.release();
 	}
 	
-	public void updateTimes(){
-		updateTimes(times + 1);
+	synchronized public void updateTimes(){
+		times = (times + 1);
 	}
 	
-	public int resetTimes(){
+	synchronized public int resetTimes(){
 		int _times = times;
-		updateTimes(0);
+		times = 0;
 		return _times;
-	}
-	
- 	synchronized private void updateTimes(int times){
- 		this.times = times;
 	}
 	
 	public void availablePermits(){
 		semaphore.availablePermits();
 	} 
 	
-	public int maxCall(){
+	synchronized public int maxCall(){
 		int _maxCallNum = maxThread - semaphore.availablePermits();
 		if(_maxCallNum > maxCallNum){
 			maxCallNum = _maxCallNum;
@@ -86,6 +85,14 @@ public class SemaphoreWrapper {
 
 	public Method getMethod() {
 		return method;
+	}
+
+	public int getMaxCallNum() {
+		return maxCallNum;
+	}
+
+	public Date getMaxCallNumDate() {
+		return maxCallNumDate;
 	}
 	
 }

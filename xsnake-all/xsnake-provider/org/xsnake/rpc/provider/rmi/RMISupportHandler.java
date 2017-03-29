@@ -110,6 +110,7 @@ public class RMISupportHandler {
 	}
 	
 	private void export(XSnakeProviderContext context) {
+		boolean flag = true;
 		ApplicationContext applicationContext = context.getApplicationContext();
 		int port = getPort(defaultPort);
 		String[] names = applicationContext.getBeanDefinitionNames();
@@ -123,23 +124,25 @@ public class RMISupportHandler {
 					try {
 						RmiServiceExporter se = new RmiServiceExporter();
 						String nodeName = UUID.randomUUID().toString();
-						se.setServiceName(nodeName);
 						XSnakeInterceptorHandler handler = new XSnakeInterceptorHandler(interFace,target,nodeName,maxThread);
+						se.setServiceName(nodeName);
 						Object proxy = handler.createProxy();
 						se.setService(proxy);
-						se.setAlwaysCreateRegistry(false);
+						se.setAlwaysCreateRegistry(flag);
 						se.setRegistryPort(port);
 						se.setServiceInterface(interFace);
 						se.setClientSocketFactory(client);
 						se.setServerSocketFactory(server);
 						se.afterPropertiesSet();
+						flag = false;
 						String url = String.format("rmi://%s:%d/%s", host, port, nodeName);
 						handlerList.add(handler);
 						try {
 							zooKeeper.dir(getServicePath()+"/"+interFace.getName());
 							zooKeeper.tempDir(getServicePath()+"/"+interFace.getName()+"/"+nodeName, url);
-							zooKeeper.dir(getServicePath()+"/"+host+":"+port);
-							zooKeeper.tempDir(getServicePath()+"/"+host+":"+port+"/"+interFace.getName());
+							String nodes = getServicePath()+"/"+host+"_"+port;
+							zooKeeper.dir(nodes);
+							zooKeeper.tempDir(nodes+"/"+interFace.getName());
 						}  catch (Exception e) {
 							e.printStackTrace();
 							throw new BeanCreationException(e.getMessage());

@@ -83,11 +83,5 @@ public class GZipUtil {
 
 		return decompressed;
 	}
-
-	public static void main(String[] args) {
-		String abc = gzip("abc");
-		System.out.println(abc);
-		System.out.println(gunzip(abc));
-	}
 	
 }

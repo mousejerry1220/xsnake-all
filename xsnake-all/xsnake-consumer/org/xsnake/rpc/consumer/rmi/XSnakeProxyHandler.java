@@ -101,11 +101,11 @@ public class XSnakeProxyHandler implements InvocationHandler {
 		}
 		
 		for(String node : list){
-			String rmiPath = zooKeeper.dirData(path + "/"+node);
-			if(rmiPath == null){
+			byte[] rmiPathData = zooKeeper.dirData(path + "/"+node);
+			if(rmiPathData == null){
 				continue;
 			}
-			
+			String rmiPath = new String(rmiPathData);
 			if(targetMap.get(node) != null){
 				newTargetMap.put(node, targetMap.get(node));
 				continue;

@@ -1,7 +1,10 @@
 package org.xsnake.rpc.consumer.proxy;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.BeanCreationException;
@@ -23,13 +26,19 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xsnake.rpc.api.Remote;
+import org.xsnake.rpc.api.RequestMethod;
+import org.xsnake.rpc.api.Rest;
 import org.xsnake.rpc.consumer.rmi.XSnakeProxyFactory;
+import org.xsnake.rpc.rest.RestRequestObject;
+import org.xsnake.rpc.rest.TargetMethod;
 
 public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 
 	Map<String, String> propertyMap = new HashMap<String, String>();
-
-	Map<String, Class<?>> serviceMap = new HashMap<String, Class<?>>();
+	
+	List<Class<?>> interfaceList = new ArrayList<Class<?>>();
+	
+	List<TargetMethod> targetList = new ArrayList<TargetMethod>();
 	
 	public BeanDefinition parse(Element element, ParserContext parserContext) {
 		
@@ -50,9 +59,13 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 			propertyMap.put(key, value.trim());
 		}
 		
-		scanPacket();
+		//扫描包，获得需要初始的远程接口
+		String scanPackage = propertyMap.get("scanPackage");
+		if(scanPackage != null){
+			scanPacket(scanPackage);
+		}
 		
-		// 设置连接环境
+		//设置连接环境默认值
 		String environment = StringUtils.isEmpty(propertyMap.get("environment")) ? "test" : propertyMap.get("environment");
 		propertyMap.put("environment", environment);
 		
@@ -61,28 +74,30 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 		ConstructorArgumentValues values = new ConstructorArgumentValues();
 		values.addIndexedArgumentValue(0,propertyMap);
 		clientBeanDefinition.setConstructorArgumentValues(values);
-		parserContext.getRegistry().registerBeanDefinition("xsnakeProxy", clientBeanDefinition);
+		parserContext.getRegistry().registerBeanDefinition(XSnakeProxyFactory.class.getName(), clientBeanDefinition);
 
-		for (Map.Entry<String, Class<?>> entry : serviceMap.entrySet()) {
-			Class<?> interFace = entry.getValue();
-			String serviceId = entry.getKey();
+		for(Class<?> interFace : interfaceList){
 			RootBeanDefinition beanDefinition = new RootBeanDefinition();
-			beanDefinition.setFactoryBeanName("xsnakeProxy");
+			beanDefinition.setFactoryBeanName(XSnakeProxyFactory.class.getName());
 			beanDefinition.setFactoryMethodName("getService");
 			values = new ConstructorArgumentValues();
-			values.addIndexedArgumentValue(0, environment);
-			values.addIndexedArgumentValue(1, interFace);
+			values.addIndexedArgumentValue(0, interFace);
 			beanDefinition.setConstructorArgumentValues(values);
-			parserContext.getRegistry().registerBeanDefinition(serviceId, beanDefinition);
+			parserContext.getRegistry().registerBeanDefinition(interFace.getName(), beanDefinition);
 		}
+
+		for(Class<?> interFace : interfaceList){
+			initRestService(interFace);
+		}
+		
 		return null;
 	}
-
-	private void scanPacket() {
-		String scanPackage = propertyMap.get("scanPackage");
+	private void scanPacket(String scanPackage) {
+		
 		if(scanPackage == null){
 			throw new BeanCreationException("没有指定要扫描的包位置");
 		}
+		
 		String[] basePackages = scanPackage.split(";");
 		
 		for(String basePackage : basePackages){
@@ -115,9 +130,7 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 							Class<?> cls = Class.forName(className);
 							Remote remote = cls.getAnnotation(Remote.class);
 							if(remote!=null){
-								String beanName = className.substring(className.lastIndexOf('.') + 1, className.length());
-								System.out.println(beanName);
-								serviceMap.put(beanName, cls);
+								interfaceList.add(cls);
 							}
 						}
 					}
@@ -129,4 +142,19 @@ public class XSnakeBeanDefinitionParser implements BeanDefinitionParser {
 			}
 		}
 	}
+
+	private void initRestService(Class<?> clazz) {
+		Method[] methods = clazz.getDeclaredMethods();
+		for (Method method : methods) {
+			Rest rest = method.getAnnotation(Rest.class);
+			if(rest !=null){
+				RequestMethod[] httpMethods = rest.method();
+				for(RequestMethod httpMethod : httpMethods){
+					String restPath = RestRequestObject.createKey(httpMethod.toString(),rest.value());
+					targetList.add(new TargetMethod(restPath, clazz, method));
+				}
+			}
+		}
+	}
+	
 }
