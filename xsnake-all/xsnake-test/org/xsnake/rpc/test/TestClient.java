@@ -3,10 +3,8 @@ package org.xsnake.rpc.test;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.xsnake.rpc.consumer.rmi.XSnakeProxyFactory;
 
 @SpringBootApplication
