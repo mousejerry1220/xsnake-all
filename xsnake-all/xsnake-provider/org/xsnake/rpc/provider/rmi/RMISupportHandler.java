@@ -19,10 +19,11 @@ import org.springframework.remoting.rmi.RmiServiceExporter;
 import org.xsnake.rpc.api.Remote;
 import org.xsnake.rpc.common.ReflectionUtil;
 import org.xsnake.rpc.connector.ZooKeeperConnector;
+import org.xsnake.rpc.connector.ZooKeeperExpiredCallBack;
 import org.xsnake.rpc.connector.ZooKeeperWrapper;
 import org.xsnake.rpc.provider.XSnakeProviderContext;
 
-public class RMISupportHandler {
+public class RMISupportHandler implements ZooKeeperExpiredCallBack{
 
 	ZooKeeperWrapper zooKeeper = null;
 	
@@ -37,12 +38,17 @@ public class RMISupportHandler {
 	
 	XSnakeProviderContext context;
 	
-	List<XSnakeInterceptorHandler> handlerList = new ArrayList<XSnakeInterceptorHandler>(); 
+	List<XSnakeInterceptorHandler> handlerList = new ArrayList<XSnakeInterceptorHandler>();
+	
+	List<RmiServiceExporter> rmiServiceExporterList = new ArrayList<RmiServiceExporter>();
+	
 	
 	public RMISupportHandler(XSnakeProviderContext context) throws BeanCreationException {
-		
 		this.context = context;
-		
+		init();
+	}
+	
+	public void init(){
 		maxThread = new Semaphore(context.getRegistry().getMaxThread());
 		
 		// 连接ZooKeeper
@@ -51,7 +57,7 @@ public class RMISupportHandler {
 		}
 		
 		try {
-			zooKeeper = new ZooKeeperConnector(context.getRegistry().getZooKeeper(), context.getRegistry().getTimeout());
+			zooKeeper = new ZooKeeperConnector(context.getRegistry().getZooKeeper(), context.getRegistry().getTimeout(),this);
 		} catch (Exception e) {
 			throw new BeanCreationException("XSnake启动失败，无法连接到ZooKeeper服务器。" + e.getMessage());
 		}
@@ -66,8 +72,18 @@ public class RMISupportHandler {
 		// 初始化XSNAKE主目录
 		try {
 			zooKeeper.dir("/XSNAKE");
-			zooKeeper.dir(getRootPath());
-			zooKeeper.dir(getServicePath());
+			zooKeeper.dir(PATH_ROOT());
+			zooKeeper.dir(PATH_ROOT_SERVICES());
+			zooKeeper.dir(PATH_ROOT_SERVICESINFO());
+			zooKeeper.dir(PATH_ROOT_APPLICATIONS());
+			zooKeeper.dir(PATH_ROOT_APPLICATIONS_APP());
+			zooKeeper.dir(PATH_ROOT_APPLICATIONS_APP()+"/SERVICES");
+			
+			zooKeeper.dir(PATH_ROOT_NODES());
+			zooKeeper.dir(PATH_ROOT_NODES_HOST());
+			zooKeeper.dir(PATH_ROOT_NODES_HOST_PORTS());
+			zooKeeper.dir(PATH_ROOT_NODES_HOST_SERVICES());
+			
 		} catch (Exception e) {
 			throw new BeanCreationException("XSnake启动失败，初始化数据失败。" + e.getMessage());
 		}
@@ -110,6 +126,8 @@ public class RMISupportHandler {
 	}
 	
 	private void export(XSnakeProviderContext context) {
+		handlerList.clear();
+		rmiServiceExporterList.clear();
 		boolean flag = true;
 		ApplicationContext applicationContext = context.getApplicationContext();
 		int port = getPort(defaultPort);
@@ -137,15 +155,23 @@ public class RMISupportHandler {
 						flag = false;
 						String url = String.format("rmi://%s:%d/%s", host, port, nodeName);
 						handlerList.add(handler);
+						rmiServiceExporterList.add(se);
 						try {
-							zooKeeper.dir(getServicePath()+"/"+interFace.getName());
-							zooKeeper.tempDir(getServicePath()+"/"+interFace.getName()+"/"+nodeName, url);
+							zooKeeper.dir(PATH_ROOT_SERVICES()+"/"+interFace.getName());
+							zooKeeper.tempDir(PATH_ROOT_SERVICES()+"/"+interFace.getName()+"/"+nodeName, url);
+
+							//写入接口信息，当前每个接口所运行的节点实例信息
+							zooKeeper.dir(PATH_ROOT_SERVICESINFO()+"/"+interFace.getName());
+							zooKeeper.tempDir(PATH_ROOT_SERVICESINFO()+"/"+interFace.getName()+"/"+host+"_"+port);
 							
-							String nodeRoot = getRootPath() + "/NODES";
-							zooKeeper.dir(nodeRoot);
-							String nodes = nodeRoot+"/"+host+"_"+port;
-							zooKeeper.dir(nodes);
-							zooKeeper.tempDir(nodes+"/"+interFace.getName());
+							//应用下的接口列表
+							zooKeeper.tempDir(PATH_ROOT_APPLICATIONS_APP()+"/"+interFace.getName());
+							
+							//节点端口信息
+							zooKeeper.tempDir(PATH_ROOT_NODES_HOST_PORTS() + "/" + String.valueOf(port));
+							
+							//节点上所运行的接口
+							zooKeeper.tempDir(PATH_ROOT_NODES_HOST_SERVICES() + "/" + interFace.getName());
 						}  catch (Exception e) {
 							e.printStackTrace();
 							throw new BeanCreationException(e.getMessage());
@@ -164,20 +190,70 @@ public class RMISupportHandler {
 		return zooKeeper;
 	}
 	
-	public String getRootPath(){
+	public String PATH_ROOT(){
 		return "/XSNAKE/" + context.getRegistry().getEnvironment();
 	}
 
-	public String getServicePath(){
+	public String PATH_ROOT_SERVICES(){
 		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/SERVICES";
 	}
 	
-	public String getAllInvokeTimesPath(){
-		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/INVOKE_TIMES_ALL";
+	public String PATH_ROOT_SERVICESINFO(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/SERVICESINFO";
 	}
-
+	
+	public String PATH_ROOT_APPLICATIONS(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/APPLICATIONS";
+	}
+	
+	public String PATH_ROOT_APPLICATIONS_APP(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/APPLICATIONS/"+ context.getRegistry().getApplication();
+	}
+	
+	public String PATH_ROOT_INVOKEINFO(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment()+ "/INVOKEINFO";
+	}
+	
+	public String PATH_ROOT_NODES(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment() + "/NODES";
+	}
+	
+	public String PATH_ROOT_NODES_HOST(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment() + "/NODES/" + host;
+	}
+	
+	public String PATH_ROOT_NODES_HOST_PORTS(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment() + "/NODES/" + host + "/PORTS";
+	}
+	
+	public String PATH_ROOT_NODES_HOST_SERVICES(){
+		return "/XSNAKE/" + context.getRegistry().getEnvironment() + "/NODES/" + host + "/SERVICES";
+	}
+	
 	public List<XSnakeInterceptorHandler> getHandlerList() {
 		return handlerList;
+	}
+
+	public void destory() throws RemoteException{
+		for(RmiServiceExporter rmiServiceExporter : rmiServiceExporterList){
+			rmiServiceExporter.destroy();
+		}
+		
+		try {
+			zooKeeper.close();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public void callback() {
+		try {
+			destory();
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		init();
 	}
 	
 }

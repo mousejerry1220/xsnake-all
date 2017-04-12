@@ -14,10 +14,10 @@ public class ZooKeeperConnector extends ZooKeeperWrapper{
 	
 	static ZooKeeperConnector instance;
 	
-	public ZooKeeperConnector(String address,long timeout) throws IOException, TimeoutException {
-		if(instance!=null){
-			throw new IllegalStateException("ZooKeeper连接器已经创建，不能重复创建");
-		}
+	ZooKeeperExpiredCallBack callback;
+	
+	public ZooKeeperConnector(String address,long timeout,ZooKeeperExpiredCallBack callback) throws IOException, TimeoutException {
+		this.callback = callback;
 		instance = this;
 		initZooKeeper(address,timeout*1000);
 	}
@@ -40,7 +40,14 @@ public class ZooKeeperConnector extends ZooKeeperWrapper{
 		_zooKeeper = new ZooKeeper(servers, 5000, new Watcher() {
 			public void process(WatchedEvent event) {
 				if(event.getState() == KeeperState.Expired){
-					createZooKeeper(servers);
+					if(_zooKeeper!=null){
+						try {
+							_zooKeeper.close();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+					callback.callback();
 				}
 				if(event.getState() == KeeperState.SyncConnected){
 					timeoutCountDownLatch.countDown();
@@ -78,34 +85,34 @@ public class ZooKeeperConnector extends ZooKeeperWrapper{
 	 * 启动后，在使用过程中，如果zooKeeper连接异常（ KeeperState.Expired），重新创建实例
 	 * @param servers
 	 */
-	private void createZooKeeper(final String servers) {
-		
-		if(_zooKeeper !=null){
-			try {
-				_zooKeeper.close();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		while(true){
-			try {
-				_zooKeeper = new ZooKeeper(servers, 5000, new Watcher() {
-					public void process(WatchedEvent event) {
-						if(event.getState() == KeeperState.Expired){
-							createZooKeeper(servers);
-						}
-					}
-				});
-				break;
-			} catch (IOException e) {
-				try {
-					TimeUnit.SECONDS.sleep(5);
-				} catch (InterruptedException e1) {
-					e1.printStackTrace();
-				}
-			}
-		}
-	}
+//	private void createZooKeeper(final String servers) {
+//		
+//		if(_zooKeeper !=null){
+//			try {
+//				_zooKeeper.close();
+//			} catch (InterruptedException e) {
+//				e.printStackTrace();
+//			}
+//		}
+//		
+//		while(true){
+//			try {
+//				_zooKeeper = new ZooKeeper(servers, 5000, new Watcher() {
+//					public void process(WatchedEvent event) {
+//						if(event.getState() == KeeperState.Expired){
+//							createZooKeeper(servers);
+//						}
+//					}
+//				});
+//				break;
+//			} catch (IOException e) {
+//				try {
+//					TimeUnit.SECONDS.sleep(5);
+//				} catch (InterruptedException e1) {
+//					e1.printStackTrace();
+//				}
+//			}
+//		}
+//	}
 	
 }

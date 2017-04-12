@@ -53,7 +53,7 @@ public class XSnakeProxyHandler implements InvocationHandler {
 		}
 		
 		try {
-			initTarget();
+			initTarget(null);
 		} catch (KeeperException e) {
 			e.printStackTrace();
 			throw new BeanCreationException("没有可用的服务");
@@ -67,7 +67,7 @@ public class XSnakeProxyHandler implements InvocationHandler {
 				@Override
 				public void process(WatchedEvent event) {
 					try {
-						initTarget();
+						initTarget(null);
 					} catch (KeeperException e) {
 						e.printStackTrace();
 					} catch (InterruptedException e) {
@@ -90,14 +90,19 @@ public class XSnakeProxyHandler implements InvocationHandler {
 	 * @throws KeeperException
 	 * @throws InterruptedException
 	 */
-	synchronized private void initTarget() throws KeeperException, InterruptedException {
+	synchronized protected void initTarget(ZooKeeperWrapper _zooKeeper) throws KeeperException, InterruptedException {
+		
+		if(_zooKeeper != null){
+			zooKeeper = _zooKeeper;
+		}
+		
 		Map<String,Object> newTargetMap = new LinkedHashMap<String,Object>();
 		List<String> list = zooKeeper.getChildren(path);
 		
 		if(list==null || list.size() == 0){
 			targetNodeList.clear();
 			targetMap.clear();
-			throw new BeanCreationException("没有可用的服务");
+//			throw new BeanCreationException("没有可用的服务");
 		}
 		
 		for(String node : list){
@@ -118,7 +123,6 @@ public class XSnakeProxyHandler implements InvocationHandler {
 			Object target = c.getObject();
 			newTargetMap.put(node, target);
 		}
-		targetMap.clear();
 		targetMap = newTargetMap;
 		targetNodeList = list;
 	}
@@ -144,12 +148,21 @@ public class XSnakeProxyHandler implements InvocationHandler {
 			return method.invoke(target, args);
 		}  catch(InvocationTargetException e){
 			if(e.getTargetException() instanceof RemoteConnectFailureException &&  e.getTargetException().getCause() instanceof java.rmi.ConnectIOException){
+				if(repeat){
+					throw e;
+				}
 				return invoke(method, args,true);
 			}
 			if(e.getTargetException() instanceof UnmarshalException || //执行中断开连接时代码执行至此
 					(e.getTargetException() instanceof RemoteConnectFailureException )){	//非执行中断开连接时代码执行至此
+				if(repeat){
+					throw e;
+				}
 				return invoke(method, args,true);
 			}else if (e.getTargetException() instanceof InvocationTargetException){
+				if(repeat){
+					throw e;
+				}
 				return invoke(method, args,true);
 			}else if (e.getTargetException() instanceof UndeclaredThrowableException){
 				UndeclaredThrowableException undeclaredThrowable = (UndeclaredThrowableException)e.getTargetException();

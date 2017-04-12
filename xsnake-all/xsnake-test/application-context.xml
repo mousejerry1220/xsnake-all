@@ -21,9 +21,8 @@
    		<property name="registry.application" value="aaaa" />
    		<property name="registry.rmiMode" value="true" />
    		<property name="registry.maxThread" value="100" />
-   		<property name="registry.monitorInterval" value="60" />
-   		
-   		
+   		<property name="registry.monitorInterval" value="5" />
+   		<property name="registry.environment" value="SIT" />
    	</bean>
 
 </beans>

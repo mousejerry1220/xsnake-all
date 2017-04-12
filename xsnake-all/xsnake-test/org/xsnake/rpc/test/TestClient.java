@@ -20,7 +20,7 @@ public class TestClient {
 //		
 		Map<String,String> propertyMap = new HashMap<String,String>();
 		propertyMap.put("zooKeeper", "127.0.0.1:2181");
-		propertyMap.put("environment", "test");
+		propertyMap.put("environment", "SIT");
 		XSnakeProxyFactory factory = new XSnakeProxyFactory(propertyMap);
 		final IMyService s = factory.getService(IMyService.class);
 		for(int j=0;j<100;j++){
@@ -28,7 +28,9 @@ public class TestClient {
 //				final int a= i;
 //				new Thread(){
 //					public void run() {
-						System.out.println(s.todo("aaaaaa")+"=====");
+			try{
+				System.out.println(s.todo("aaaaaa")+"=====");
+			}catch(Exception e){}
 //					};
 //				}.start();
 //			}

@@ -1,22 +1,32 @@
 package org.xsnake.rpc.consumer.rmi;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.zookeeper.KeeperException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.xsnake.rpc.connector.ZooKeeperConnector;
+import org.xsnake.rpc.connector.ZooKeeperExpiredCallBack;
 import org.xsnake.rpc.connector.ZooKeeperWrapper;
-import org.xsnake.rpc.rest.RestPathService;
-import org.xsnake.rpc.rest.TargetMethod;
 
-public class XSnakeProxyFactory {
+public class XSnakeProxyFactory implements ZooKeeperExpiredCallBack{
 	
 	String environment;
 	
 	ZooKeeperWrapper zooKeeper;
 	
+	Map<String,String> propertyMap;
+
+	List<XSnakeProxyHandler> handlerList = new ArrayList<XSnakeProxyHandler>();
+	
 	public XSnakeProxyFactory(Map<String,String> propertyMap) throws Exception{
+		this.propertyMap = propertyMap;
+		init();
+	}
+
+	private void init() {
 		environment = propertyMap.get("environment");
 		String _zooKeeper = propertyMap.get("zooKeeper");
 		int timeout = 10;
@@ -29,7 +39,7 @@ public class XSnakeProxyFactory {
 			throw new BeanCreationException("XSnake启动失败，配置参数 zooKeeper不能为空");
 		}
 		try {
-			zooKeeper = new ZooKeeperConnector(_zooKeeper, timeout);
+			zooKeeper = new ZooKeeperConnector(_zooKeeper, timeout,this);
 		} catch (Exception e) {
 			throw new BeanCreationException("XSnake启动失败，无法连接到ZooKeeper服务器。" + e.getMessage());
 		}
@@ -37,8 +47,35 @@ public class XSnakeProxyFactory {
 	
 	@SuppressWarnings("unchecked")
 	public <T> T getService(Class<T> interfaceService){
-		T handler = (T)new XSnakeProxyHandler(environment,zooKeeper,interfaceService).createProxy();
-		return handler;
+		XSnakeProxyHandler handler = new XSnakeProxyHandler(environment,zooKeeper,interfaceService);
+		handlerList.add(handler);
+		return (T)handler.createProxy();
+	}
+
+	public void destory(){
+		if(zooKeeper !=null){
+			try {
+				zooKeeper.close();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	@Override
+	public void callback() {
+		destory();
+		init();
+		for(XSnakeProxyHandler handler : handlerList){
+			try {
+				handler.initTarget(zooKeeper);
+			} catch (KeeperException e) {
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		
 	}
 	
 }
